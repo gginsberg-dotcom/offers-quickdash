@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fetch Campaign Analytics Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            margin-bottom: 30px;
+        }
+        
+        h1 {
+            font-size: 2.5em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 1.1em;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .upload-btn {
+            background: #2563eb;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .upload-btn:hover {
+            background: #1d4ed8;
+        }
+        
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .metric-title {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 8px;
+        }
+        
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .metric-subtitle {
+            color: #999;
+            font-size: 0.8em;
+            margin-top: 4px;
+        }
+        
+        .date-input-container {
+            margin: 20px 0;
+        }
+        
+        .date-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+        }
+        
+        input[type="date"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 1em;
+            color: #333;
+            background: white;
+            transition: border-color 0.2s;
+        }
+        
+        input[type="date"]:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+        
+        .date-inputs-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .quick-filters {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .quick-filter-btn {
+            padding: 8px 16px;
+            background: #f3f4f6;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }
+        
+        .quick-filter-btn:hover {
+            background: #e5e7eb;
+        }
+        
+        .quick-filter-btn.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+        
+        .campaign-list {
+            margin-top: 20px;
+        }
+        
+        .campaign-item {
+            padding: 16px;
+            margin: 8px 0;
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .campaign-item:hover {
+            background: #f3f4f6;
+        }
+        
+        .campaign-item.selected {
+            background: #eff6ff;
+            border-color: #2563eb;
+        }
+        
+        .campaign-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .campaign-meta {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .delete-btn {
+            float: right;
+            background: #dc2626;
+            color: white;
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+        }
+        
+        .delete-btn:hover {
+            background: #b91c1c;
+        }
+        
+        .section-title {
+            font-size: 1.8em;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+        
+        .empty-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        
+        input[type="file"] {
+            display: none;
+        }
+        
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #333;
+        }
+
+        tr:hover {
+            background: #f9fafb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Fetch Campaign Analytics</h1>
+            <p class="subtitle">Upload and analyze your campaign performance data</p>
+        </div>
+
+        <div class="card">
+            <div class="flex-between">
+                <div>
+                    <h2>Upload Campaign Data</h2>
+                    <p style="color: #666; margin-top: 8px;">Upload CSV files from your Fetch campaigns</p>
+                </div>
+                <label for="fileInput" class="upload-btn">Upload CSV</label>
+                <input type="file" id="fileInput" accept=".csv">
+            </div>
+        </div>
+
+        <div id="campaignList"></div>
+        <div id="dateFilter"></div>
+        <div id="metrics"></div>
+        <div id="dataTable"></div>
+    </div>
+
+    <script>
+        let campaigns = [];
+        let selectedCampaign = null;
+        let startDate = null;
+        let endDate = null;
+
+        // Load saved campaigns
+        const savedCampaigns = localStorage.getItem('fetchCampaigns');
+        if (savedCampaigns) {
+            campaigns = JSON.parse(savedCampaigns);
+            if (campaigns.length > 0) {
+                selectedCampaign = campaigns[0];
+                initializeDates();
+            }
+        }
+
+        function initializeDates() {
+            if (selectedCampaign && selectedCampaign.dailyData.length > 0) {
+                startDate = selectedCampaign.dailyData[0].date;
+                endDate = selectedCampaign.dailyData[selectedCampaign.dailyData.length - 1].date;
+            }
+        }
+
+        // File upload handler
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const csv = event.target.result;
+                    processCampaignData(csv, file.name);
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        function parseCSV(csv) {
+            const lines = csv.split('\n');
+            const result = [];
+            
+            for (let line of lines) {
+                if (!line.trim()) continue;
+                
+                const row = [];
+                let current = '';
+                let inQuotes = false;
+                
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        row.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                row.push(current.trim());
+                result.push(row);
+            }
+            
+            return result;
+        }
+
+        function processCampaignData(csv, filename) {
+            const data = parseCSV(csv);
+            
+            let dailyDataStartIndex = -1;
+            for (let i = 0; i < data.length; i++) {
+                if (data[i][0] === 'Buyer Volume') {
+                    dailyDataStartIndex = i + 2;
+                    break;
+                }
+            }
+            
+            if (dailyDataStartIndex === -1) {
+                alert('Could not find daily data in CSV');
+                return;
+            }
+            
+            const campaignName = data[1] ? data[1][0].replace(/"/g, '') : filename;
+            
+            const dailyData = [];
+            for (let i = dailyDataStartIndex; i < data.length; i++) {
+                const row = data[i];
+                if (row.length < 5 || !row[0]) break;
+                
+                const parseValue = (val) => {
+                    if (!val || val === '-') return 0;
+                    return parseFloat(val.replace(/[$,]/g, ''));
+                };
+                
+                dailyData.push({
+                    date: row[0],
+                    sales: parseValue(row[1]),
+                    units: parseValue(row[2]),
+                    trips: parseValue(row[3]),
+                    buyers: parseValue(row[4]),
+                    cost: parseValue(row[5])
+                });
+            }
+            
+            const newCampaign = {
+                id: Date.now(),
+                name: campaignName,
+                uploadDate: new Date().toISOString(),
+                dailyData: dailyData
+            };
+            
+            campaigns.unshift(newCampaign);
+            selectedCampaign = newCampaign;
+            initializeDates();
+            
+            saveCampaigns();
+            render();
+        }
+
+        function saveCampaigns() {
+            localStorage.setItem('fetchCampaigns', JSON.stringify(campaigns));
+        }
+
+        function getFilteredData() {
+            if (!selectedCampaign) return [];
+            
+            return selectedCampaign.dailyData.filter(day => {
+                return day.date >= startDate && day.date <= endDate;
+            });
+        }
+
+        function calculateMetrics(data) {
+            if (data.length === 0) return null;
+            
+            const totals = data.reduce((acc, day) => ({
+                sales: acc.sales + day.sales,
+                units: acc.units + day.units,
+                trips: acc.trips + day.trips,
+                buyers: acc.buyers + day.buyers,
+                cost: acc.cost + day.cost
+            }), { sales: 0, units: 0, trips: 0, buyers: 0, cost: 0 });
+            
+            const days = data.length;
+            
+            return {
+                totalSales: totals.sales,
+                totalUnits: totals.units,
+                totalTrips: totals.trips,
+                totalBuyers: totals.buyers,
+                totalCost: totals.cost,
+                roas: totals.cost > 0 ? totals.sales / totals.cost : 0,
+                tripsPerBuyer: totals.buyers > 0 ? totals.trips / totals.buyers : 0,
+                aov: totals.trips > 0 ? totals.sales / totals.trips : 0,
+                cpa: totals.buyers > 0 ? totals.cost / totals.buyers : 0,
+                costPerTrip: totals.trips > 0 ? totals.cost / totals.trips : 0,
+                unitsPerTrip: totals.trips > 0 ? totals.units / totals.trips : 0,
+                unitsPerBuyer: totals.buyers > 0 ? totals.units / totals.buyers : 0,
+                salesPerDay: days > 0 ? totals.sales / days : 0,
+                costPerUnit: totals.units > 0 ? totals.cost / totals.units : 0,
+                averageSalesPerBuyer: totals.buyers > 0 ? totals.sales / totals.buyers : 0
+            };
+        }
+
+        function formatCurrency(value) {
+            return '$' + value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatNumber(value) {
+            return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        function formatWholeNumber(value) {
+            return Math.round(value).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        }
+
+        function render() {
+            renderCampaignList();
+            renderDateFilter();
+            renderMetrics();
+            renderDataTable();
+        }
+
+        function renderCampaignList() {
+            const container = document.getElementById('campaignList');
+            
+            if (campaigns.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            let html = '<div class="card"><h2>Saved Campaigns</h2><div class="campaign-list">';
+            
+            campaigns.forEach(campaign => {
+                const isSelected = selectedCampaign && selectedCampaign.id === campaign.id;
+                html += `
+                    <div class="campaign-item ${isSelected ? 'selected' : ''}" onclick="selectCampaign(${campaign.id})">
+                        <button class="delete-btn" onclick="event.stopPropagation(); deleteCampaign(${campaign.id})">Delete</button>
+                        <div class="campaign-name">${campaign.name}</div>
+                        <div class="campaign-meta">${campaign.dailyData.length} days of data • Uploaded ${new Date(campaign.uploadDate).toLocaleDateString()}</div>
+                    </div>
+                `;
+            });
+            
+            html += '</div></div>';
+            container.innerHTML = html;
+        }
+
+        function renderDateFilter() {
+            const container = document.getElementById('dateFilter');
+            
+            if (!selectedCampaign) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            const minDate = selectedCampaign.dailyData[0].date;
+            const maxDate = selectedCampaign.dailyData[selectedCampaign.dailyData.length - 1].date;
+            
+            container.innerHTML = `
+                <div class="card">
+                    <h2>Date Range Filter</h2>
+                    <div class="date-inputs-row">
+                        <div class="date-input-container">
+                            <label class="date-label">Start Date</label>
+                            <input type="date" id="startDateInput" value="${startDate}" min="${minDate}" max="${maxDate}" onchange="updateStartDate(this.value)">
+                        </div>
+                        <div class="date-input-container">
+                            <label class="date-label">End Date</label>
+                            <input type="date" id="endDateInput" value="${endDate}" min="${minDate}" max="${maxDate}" onchange="updateEndDate(this.value)">
+                        </div>
+                    </div>
+                    <div class="quick-filters">
+                        <button class="quick-filter-btn" onclick="setQuickFilter('all')">All Time</button>
+                        <button class="quick-filter-btn" onclick="setQuickFilter(7)">Last 7 Days</button>
+                        <button class="quick-filter-btn" onclick="setQuickFilter(30)">Last 30 Days</button>
+                        <button class="quick-filter-btn" onclick="setQuickFilter(60)">Last 60 Days</button>
+                        <button class="quick-filter-btn" onclick="setQuickFilter(90)">Last 90 Days</button>
+                    </div>
+                    <p style="color: #666; margin-top: 16px;">Showing ${getFilteredData().length} days of data</p>
+                </div>
+            `;
+        }
+
+        function setQuickFilter(days) {
+            if (!selectedCampaign) return;
+            
+            const data = selectedCampaign.dailyData;
+            endDate = data[data.length - 1].date;
+            
+            if (days === 'all') {
+                startDate = data[0].date;
+            } else {
+                const endDateObj = new Date(endDate);
+                endDateObj.setDate(endDateObj.getDate() - days);
+                const calculatedStart = endDateObj.toISOString().split('T')[0];
+                
+                // Find the closest actual date in our data
+                let closestDate = data[0].date;
+                for (let i = 0; i < data.length; i++) {
+                    if (data[i].date >= calculatedStart) {
+                        closestDate = data[i].date;
+                        break;
+                    }
+                }
+                startDate = closestDate;
+            }
+            
+            render();
+        }
+
+        function updateStartDate(value) {
+            startDate = value;
+            render();
+        }
+
+        function updateEndDate(value) {
+            endDate = value;
+            render();
+        }
+
+        function renderMetrics() {
+            const container = document.getElementById('metrics');
+            const filteredData = getFilteredData();
+            const metrics = calculateMetrics(filteredData);
+            
+            if (!metrics) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            container.innerHTML = `
+                <div>
+                    <h2 class="section-title">Core Metrics</h2>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-title">Total Sales</div>
+                            <div class="metric-value">${formatCurrency(metrics.totalSales)}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Total Units</div>
+                            <div class="metric-value">${formatWholeNumber(metrics.totalUnits)}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Total Trips</div>
+                            <div class="metric-value">${formatWholeNumber(metrics.totalTrips)}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Total Buyers</div>
+                            <div class="metric-value">${formatWholeNumber(metrics.totalBuyers)}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Total Cost</div>
+                            <div class="metric-value">${formatCurrency(metrics.totalCost)}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">ROAS</div>
+                            <div class="metric-value">${formatNumber(metrics.roas)}</div>
+                            <div class="metric-subtitle">Return on Ad Spend</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Trips per Buyer</div>
+                            <div class="metric-value">${formatNumber(metrics.tripsPerBuyer)}</div>
+                            <div class="metric-subtitle">Engagement frequency</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Average Order Value</div>
+                            <div class="metric-value">${formatCurrency(metrics.aov)}</div>
+                            <div class="metric-subtitle">Sales per trip</div>
+                        </div>
+                    </div>
+                    
+                    <h2 class="section-title">Performance Metrics</h2>
+                    <div class="metrics-grid">
+                        <div class="metric-card">
+                            <div class="metric-title">Cost per Acquisition</div>
+                            <div class="metric-value">${formatCurrency(metrics.cpa)}</div>
+                            <div class="metric-subtitle">Only applicable for non-brand buyer or new to category offers</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Cost per Trip</div>
+                            <div class="metric-value">${formatCurrency(metrics.costPerTrip)}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Cost per Unit</div>
+                            <div class="metric-value">${formatCurrency(metrics.costPerUnit)}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Units per Trip</div>
+                            <div class="metric-value">${formatNumber(metrics.unitsPerTrip)}</div>
+                            <div class="metric-subtitle">Basket size</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Units per Buyer</div>
+                            <div class="metric-value">${formatNumber(metrics.unitsPerBuyer)}</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Sales per Buyer</div>
+                            <div class="metric-value">${formatCurrency(metrics.averageSalesPerBuyer)}</div>
+                            <div class="metric-subtitle">Customer lifetime value</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-title">Daily Average Sales</div>
+                            <div class="metric-value">${formatCurrency(metrics.salesPerDay)}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDataTable() {
+            const container = document.getElementById('dataTable');
+            const filteredData = getFilteredData();
+            
+            if (filteredData.length === 0) {
+                if (!selectedCampaign && campaigns.length === 0) {
+                    container.innerHTML = `
+                        <div class="card empty-state">
+                            <div class="empty-icon">📊</div>
+                            <h3>No campaigns yet</h3>
+                            <p style="color: #666; margin-top: 8px;">Upload a CSV file to get started analyzing your Fetch campaigns</p>
+                        </div>
+                    `;
+                }
+                return;
+            }
+            
+            let html = '<div class="card"><h2 class="section-title">Daily Data</h2><table><thead><tr>';
+            html += '<th>Date</th><th>Sales</th><th>Units</th><th>Trips</th><th>Buyers</th><th>Cost</th>';
+            html += '</tr></thead><tbody>';
+            
+            filteredData.forEach(row => {
+                html += `<tr>
+                    <td>${row.date}</td>
+                    <td>${formatCurrency(row.sales)}</td>
+                    <td>${formatWholeNumber(row.units)}</td>
+                    <td>${formatWholeNumber(row.trips)}</td>
+                    <td>${formatWholeNumber(row.buyers)}</td>
+                    <td>${formatCurrency(row.cost)}</td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+        }
+
+        function selectCampaign(id) {
+            selectedCampaign = campaigns.find(c => c.id === id);
+            initializeDates();
+            render();
+        }
+
+        function deleteCampaign(id) {
+            if (confirm('Delete this campaign?')) {
+                campaigns = campaigns.filter(c => c.id !== id);
+                if (selectedCampaign && selectedCampaign.id === id) {
+                    selectedCampaign = campaigns[0] || null;
+                    if (selectedCampaign) {
+                        initializeDates();
+                    }
+                }
+                saveCampaigns();
+                render();
+            }
+        }
+
+        // Initial render
+        render();
+    </script>
+</body>
+</html>
