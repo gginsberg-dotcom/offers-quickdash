@@ -321,6 +321,93 @@
             border-color: #8b5cf6;
         }
 
+        .comparison-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .period-selector {
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border: 2px solid #e5e7eb;
+        }
+
+        .period-selector h3 {
+            font-size: 1em;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 12px;
+        }
+
+        .comparison-results {
+            margin-top: 20px;
+        }
+
+        .comparison-metric {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 16px;
+            padding: 16px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            align-items: center;
+            border-left: 4px solid #8b5cf6;
+        }
+
+        .comparison-metric-name {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .comparison-value {
+            text-align: right;
+            font-weight: 500;
+        }
+
+        .comparison-delta {
+            text-align: right;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .comparison-delta.positive {
+            color: #10b981;
+        }
+
+        .comparison-delta.negative {
+            color: #ef4444;
+        }
+
+        .comparison-delta.neutral {
+            color: #6b7280;
+        }
+
+        .toggle-comparison-btn {
+            background: #f3f4f6;
+            border: 2px solid #e5e7eb;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #374151;
+            transition: all 0.2s;
+            margin-bottom: 20px;
+        }
+
+        .toggle-comparison-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .toggle-comparison-btn.active {
+            background: #8b5cf6;
+            color: white;
+            border-color: #8b5cf6;
+        }
+
         .chart-container {
             position: relative;
             width: 100%;
@@ -387,6 +474,7 @@
         <div id="campaignList"></div>
         <div id="dateFilter"></div>
         <div id="metrics"></div>
+        <div id="comparison"></div>
         <div id="trendsChart"></div>
         <div id="dataTable"></div>
     </div>
@@ -570,6 +658,7 @@
             renderCampaignList();
             renderDateFilter();
             renderMetrics();
+            renderComparison();
             renderTrendsChart();
             renderDataTable();
         }
@@ -584,6 +673,162 @@
             trips: false,
             buyers: false
         };
+        let comparisonEnabled = false;
+        let period1Start = null;
+        let period1End = null;
+        let period2Start = null;
+        let period2End = null;
+
+        function toggleComparison() {
+            comparisonEnabled = !comparisonEnabled;
+            if (comparisonEnabled && selectedCampaign) {
+                // Initialize periods if not set
+                const data = selectedCampaign.dailyData;
+                if (!period1Start || !period1End) {
+                    // Default: first half vs second half
+                    const midpoint = Math.floor(data.length / 2);
+                    period1Start = data[0].date;
+                    period1End = data[midpoint - 1].date;
+                    period2Start = data[midpoint].date;
+                    period2End = data[data.length - 1].date;
+                }
+            }
+            render();
+        }
+
+        function updateComparisonPeriod(period, startOrEnd, value) {
+            if (period === 1) {
+                if (startOrEnd === 'start') period1Start = value;
+                else period1End = value;
+            } else {
+                if (startOrEnd === 'start') period2Start = value;
+                else period2End = value;
+            }
+            render();
+        }
+
+        function renderComparison() {
+            const container = document.getElementById('comparison');
+            
+            if (!selectedCampaign) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const data = selectedCampaign.dailyData;
+            const minDate = data[0].date;
+            const maxDate = data[data.length - 1].date;
+
+            let html = '<div class="card">';
+            html += '<button class="toggle-comparison-btn ' + (comparisonEnabled ? 'active' : '') + '" onclick="toggleComparison()">';
+            html += comparisonEnabled ? 'Hide Period Comparison' : 'Compare Time Periods';
+            html += '</button>';
+
+            if (comparisonEnabled) {
+                html += '<div class="comparison-section">';
+                
+                // Period 1 selector
+                html += '<div class="period-selector">';
+                html += '<h3>📅 Period 1</h3>';
+                html += '<div class="date-input-container">';
+                html += '<label class="date-label">Start Date</label>';
+                html += `<input type="date" value="${period1Start}" min="${minDate}" max="${maxDate}" onchange="updateComparisonPeriod(1, 'start', this.value)">`;
+                html += '</div>';
+                html += '<div class="date-input-container">';
+                html += '<label class="date-label">End Date</label>';
+                html += `<input type="date" value="${period1End}" min="${minDate}" max="${maxDate}" onchange="updateComparisonPeriod(1, 'end', this.value)">`;
+                html += '</div>';
+                html += '</div>';
+                
+                // Period 2 selector
+                html += '<div class="period-selector">';
+                html += '<h3>📅 Period 2</h3>';
+                html += '<div class="date-input-container">';
+                html += '<label class="date-label">Start Date</label>';
+                html += `<input type="date" value="${period2Start}" min="${minDate}" max="${maxDate}" onchange="updateComparisonPeriod(2, 'start', this.value)">`;
+                html += '</div>';
+                html += '<div class="date-input-container">';
+                html += '<label class="date-label">End Date</label>';
+                html += `<input type="date" value="${period2End}" min="${minDate}" max="${maxDate}" onchange="updateComparisonPeriod(2, 'end', this.value)">`;
+                html += '</div>';
+                html += '</div>';
+                
+                html += '</div>'; // end comparison-section
+
+                // Calculate metrics for both periods
+                const period1Data = data.filter(d => d.date >= period1Start && d.date <= period1End);
+                const period2Data = data.filter(d => d.date >= period2Start && d.date <= period2End);
+                
+                const period1Metrics = calculateMetrics(period1Data);
+                const period2Metrics = calculateMetrics(period2Data);
+
+                if (period1Metrics && period2Metrics) {
+                    html += '<div class="comparison-results">';
+                    html += '<h3 style="margin-bottom: 16px; color: #374151; font-weight: 600;">Comparison Results</h3>';
+                    
+                    // Helper function to generate comparison rows
+                    const addComparisonRow = (name, value1, value2, format) => {
+                        const diff = value2 - value1;
+                        const percentChange = value1 !== 0 ? ((diff / value1) * 100) : 0;
+                        
+                        let deltaClass = 'neutral';
+                        let deltaSymbol = '';
+                        if (diff > 0) {
+                            deltaClass = 'positive';
+                            deltaSymbol = '+';
+                        } else if (diff < 0) {
+                            deltaClass = 'negative';
+                        }
+                        
+                        const formatValue = (val) => {
+                            if (format === 'currency') return formatCurrency(val);
+                            if (format === 'whole') return formatWholeNumber(val);
+                            return formatNumber(val);
+                        };
+                        
+                        return `
+                            <div class="comparison-metric">
+                                <div class="comparison-metric-name">${name}</div>
+                                <div class="comparison-value">${formatValue(value1)}</div>
+                                <div class="comparison-value">${formatValue(value2)}</div>
+                                <div class="comparison-delta ${deltaClass}">
+                                    ${deltaSymbol}${formatNumber(percentChange)}%
+                                </div>
+                            </div>
+                        `;
+                    };
+                    
+                    // Header row
+                    html += `
+                        <div class="comparison-metric" style="background: #f9fafb; font-weight: 600;">
+                            <div>Metric</div>
+                            <div style="text-align: right;">Period 1</div>
+                            <div style="text-align: right;">Period 2</div>
+                            <div style="text-align: right;">Change</div>
+                        </div>
+                    `;
+                    
+                    // Add all metrics
+                    html += addComparisonRow('Sales', period1Metrics.totalSales, period2Metrics.totalSales, 'currency');
+                    html += addComparisonRow('Cost', period1Metrics.totalCost, period2Metrics.totalCost, 'currency');
+                    html += addComparisonRow('ROAS', period1Metrics.roas, period2Metrics.roas, 'number');
+                    html += addComparisonRow('Units', period1Metrics.totalUnits, period2Metrics.totalUnits, 'whole');
+                    html += addComparisonRow('Trips', period1Metrics.totalTrips, period2Metrics.totalTrips, 'whole');
+                    html += addComparisonRow('Buyers', period1Metrics.totalBuyers, period2Metrics.totalBuyers, 'whole');
+                    html += addComparisonRow('CAC', period1Metrics.cpa, period2Metrics.cpa, 'currency');
+                    html += addComparisonRow('Cost per Unit Moved', period1Metrics.costPerUnit, period2Metrics.costPerUnit, 'currency');
+                    html += addComparisonRow('Units per Trip', period1Metrics.unitsPerTrip, period2Metrics.unitsPerTrip, 'number');
+                    html += addComparisonRow('Daily Avg Sales', period1Metrics.salesPerDay, period2Metrics.salesPerDay, 'currency');
+                    
+                    html += '</div>'; // end comparison-results
+                } else {
+                    html += '<p class="info-text">Select valid date ranges for both periods to see comparison.</p>';
+                }
+            }
+            
+            html += '</div>'; // end card
+            container.innerHTML = html;
+        }
 
         function renderTrendsChart() {
             const container = document.getElementById('trendsChart');
