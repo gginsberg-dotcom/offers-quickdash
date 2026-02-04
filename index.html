@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fetch Campaign Analytics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -296,6 +297,73 @@
             margin-top: 16px;
             font-size: 0.9em;
         }
+
+        .collapse-btn {
+            background: #f3f4f6;
+            border: 2px solid #e5e7eb;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            color: #374151;
+            transition: all 0.2s;
+            margin-bottom: 16px;
+            display: inline-block;
+        }
+
+        .collapse-btn:hover {
+            background: #e5e7eb;
+        }
+
+        .collapse-btn.active {
+            background: #8b5cf6;
+            color: white;
+            border-color: #8b5cf6;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            margin-top: 20px;
+        }
+
+        .chart-toggles {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .chart-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .chart-toggle input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #8b5cf6;
+        }
+
+        .chart-toggle label {
+            cursor: pointer;
+            font-size: 0.9em;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        #trendChart {
+            width: 100%;
+            height: 100%;
+        }
     </style>
 </head>
 <body>
@@ -319,6 +387,7 @@
         <div id="campaignList"></div>
         <div id="dateFilter"></div>
         <div id="metrics"></div>
+        <div id="trendsChart"></div>
         <div id="dataTable"></div>
     </div>
 
@@ -501,6 +570,311 @@
             renderCampaignList();
             renderDateFilter();
             renderMetrics();
+            renderTrendsChart();
+            renderDataTable();
+        }
+
+        let tableCollapsed = false;
+        let chartInstance = null;
+        let chartMetrics = {
+            sales: true,
+            cost: true,
+            roas: false,
+            units: false,
+            trips: false,
+            buyers: false
+        };
+
+        function renderTrendsChart() {
+            const container = document.getElementById('trendsChart');
+            const filteredData = getFilteredData();
+            
+            if (filteredData.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="card">
+                    <h2 class="section-title">Campaign Trends</h2>
+                    <div class="chart-toggles">
+                        <div class="chart-toggle">
+                            <input type="checkbox" id="toggle-sales" ${chartMetrics.sales ? 'checked' : ''} onchange="toggleChartMetric('sales', this.checked)">
+                            <label for="toggle-sales">Sales ($)</label>
+                        </div>
+                        <div class="chart-toggle">
+                            <input type="checkbox" id="toggle-cost" ${chartMetrics.cost ? 'checked' : ''} onchange="toggleChartMetric('cost', this.checked)">
+                            <label for="toggle-cost">Cost ($)</label>
+                        </div>
+                        <div class="chart-toggle">
+                            <input type="checkbox" id="toggle-roas" ${chartMetrics.roas ? 'checked' : ''} onchange="toggleChartMetric('roas', this.checked)">
+                            <label for="toggle-roas">ROAS</label>
+                        </div>
+                        <div class="chart-toggle">
+                            <input type="checkbox" id="toggle-units" ${chartMetrics.units ? 'checked' : ''} onchange="toggleChartMetric('units', this.checked)">
+                            <label for="toggle-units">Units</label>
+                        </div>
+                        <div class="chart-toggle">
+                            <input type="checkbox" id="toggle-trips" ${chartMetrics.trips ? 'checked' : ''} onchange="toggleChartMetric('trips', this.checked)">
+                            <label for="toggle-trips">Trips</label>
+                        </div>
+                        <div class="chart-toggle">
+                            <input type="checkbox" id="toggle-buyers" ${chartMetrics.buyers ? 'checked' : ''} onchange="toggleChartMetric('buyers', this.checked)">
+                            <label for="toggle-buyers">Buyers</label>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            `;
+
+            drawChart();
+        }
+
+        function toggleChartMetric(metric, enabled) {
+            chartMetrics[metric] = enabled;
+            drawChart();
+        }
+
+        function drawChart() {
+            const canvas = document.getElementById('trendChart');
+            if (!canvas) return;
+
+            const filteredData = getFilteredData();
+            if (filteredData.length === 0) return;
+
+            // Destroy existing chart instance
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            // Prepare data with calculated ROAS
+            const chartData = filteredData.map(d => ({
+                ...d,
+                roas: d.cost > 0 ? d.sales / d.cost : 0
+            }));
+
+            // Define metric configurations
+            const metricConfigs = {
+                sales: { label: 'Sales', color: '#10b981', yAxisID: 'y-currency', format: 'currency' },
+                cost: { label: 'Cost', color: '#ef4444', yAxisID: 'y-currency', format: 'currency' },
+                roas: { label: 'ROAS', color: '#8b5cf6', yAxisID: 'y-ratio', format: 'number' },
+                units: { label: 'Units', color: '#3b82f6', yAxisID: 'y-count', format: 'whole' },
+                trips: { label: 'Trips', color: '#f59e0b', yAxisID: 'y-count', format: 'whole' },
+                buyers: { label: 'Buyers', color: '#ec4899', yAxisID: 'y-count', format: 'whole' }
+            };
+
+            // Get active metrics
+            const activeMetrics = Object.keys(chartMetrics).filter(k => chartMetrics[k]);
+            
+            if (activeMetrics.length === 0) {
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#6b7280';
+                ctx.font = '14px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Select at least one metric to display', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            // Determine which y-axes to show based on active metrics
+            const activeYAxes = new Set(activeMetrics.map(m => metricConfigs[m].yAxisID));
+            
+            // Build datasets
+            const datasets = activeMetrics.map(metric => {
+                const config = metricConfigs[metric];
+                return {
+                    label: config.label,
+                    data: chartData.map(d => d[metric]),
+                    borderColor: config.color,
+                    backgroundColor: config.color + '20',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 6,
+                    tension: 0.1,
+                    yAxisID: config.yAxisID,
+                    format: config.format
+                };
+            });
+
+            // Build y-axes configuration
+            const yAxes = {};
+            
+            if (activeYAxes.has('y-currency')) {
+                yAxes['y-currency'] = {
+                    type: 'linear',
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Currency ($)',
+                        color: '#374151',
+                        font: { weight: '500' }
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return '$' + value.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                        },
+                        color: '#6b7280'
+                    },
+                    grid: {
+                        color: '#e5e7eb'
+                    }
+                };
+            }
+            
+            if (activeYAxes.has('y-ratio')) {
+                yAxes['y-ratio'] = {
+                    type: 'linear',
+                    position: activeYAxes.has('y-currency') ? 'right' : 'left',
+                    title: {
+                        display: true,
+                        text: 'ROAS',
+                        color: '#374151',
+                        font: { weight: '500' }
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toFixed(2);
+                        },
+                        color: '#6b7280'
+                    },
+                    grid: {
+                        display: !activeYAxes.has('y-currency'),
+                        color: '#e5e7eb'
+                    }
+                };
+            }
+            
+            if (activeYAxes.has('y-count')) {
+                yAxes['y-count'] = {
+                    type: 'linear',
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Count',
+                        color: '#374151',
+                        font: { weight: '500' }
+                    },
+                    ticks: {
+                        callback: function(value) {
+                            return value.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                        },
+                        color: '#6b7280'
+                    },
+                    grid: {
+                        display: false
+                    }
+                };
+            }
+
+            // Create chart
+            const ctx = canvas.getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: chartData.map(d => d.date),
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 15,
+                                font: {
+                                    size: 12,
+                                    weight: '500'
+                                },
+                                color: '#374151'
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            padding: 12,
+                            displayColors: true,
+                            callbacks: {
+                                title: function(context) {
+                                    const date = new Date(context[0].label);
+                                    return date.toLocaleDateString('en-US', { 
+                                        weekday: 'short',
+                                        year: 'numeric', 
+                                        month: 'short', 
+                                        day: 'numeric' 
+                                    });
+                                },
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    
+                                    const format = context.dataset.format;
+                                    const value = context.parsed.y;
+                                    
+                                    if (format === 'currency') {
+                                        label += '$' + value.toLocaleString('en-US', { 
+                                            minimumFractionDigits: 2, 
+                                            maximumFractionDigits: 2 
+                                        });
+                                    } else if (format === 'whole') {
+                                        label += Math.round(value).toLocaleString('en-US');
+                                    } else {
+                                        label += value.toLocaleString('en-US', { 
+                                            minimumFractionDigits: 2, 
+                                            maximumFractionDigits: 2 
+                                        });
+                                    }
+                                    
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Date',
+                                color: '#374151',
+                                font: { weight: '500' }
+                            },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                autoSkip: true,
+                                maxTicksLimit: 12,
+                                color: '#6b7280',
+                                callback: function(value, index) {
+                                    const date = new Date(this.getLabelForValue(value));
+                                    return date.toLocaleDateString('en-US', { 
+                                        month: 'short', 
+                                        day: 'numeric' 
+                                    });
+                                }
+                            },
+                            grid: {
+                                color: '#f3f4f6'
+                            }
+                        },
+                        ...yAxes
+                    }
+                }
+            });
+        }
+
+        function toggleTable() {
+            tableCollapsed = !tableCollapsed;
             renderDataTable();
         }
 
@@ -651,9 +1025,9 @@
                         <div class="metric-subtitle">Total campaign cost / units sold</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-title">Cost per Acquisition</div>
+                        <div class="metric-title">Customer Acquisition Cost (CAC)</div>
                         <div class="metric-value">${formatCurrency(metrics.cpa)}</div>
-                        <div class="metric-subtitle">Only applicable for non-brand buyer or new to category offers</div>
+                        <div class="metric-subtitle"><strong>Only applies to Non-Brand and Competitive Offers</strong></div>
                     </div>
                     <div class="metric-card">
                         <div class="metric-title">Units per Trip</div>
@@ -685,22 +1059,33 @@
                 return;
             }
             
-            let html = '<div class="card"><h2 class="section-title">Daily Data</h2><table><thead><tr>';
-            html += '<th>Date</th><th>Sales</th><th>Units</th><th>Trips</th><th>Buyers</th><th>Cost</th>';
-            html += '</tr></thead><tbody>';
+            let html = '<div class="card">';
+            html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">';
+            html += '<h2 class="section-title" style="margin-bottom: 0;">Daily Data</h2>';
+            html += `<button class="collapse-btn ${tableCollapsed ? '' : 'active'}" onclick="toggleTable()">`;
+            html += tableCollapsed ? 'Show Table' : 'Hide Table';
+            html += '</button></div>';
             
-            filteredData.forEach(row => {
-                html += `<tr>
-                    <td>${row.date}</td>
-                    <td>${formatCurrency(row.sales)}</td>
-                    <td>${formatWholeNumber(row.units)}</td>
-                    <td>${formatWholeNumber(row.trips)}</td>
-                    <td>${formatWholeNumber(row.buyers)}</td>
-                    <td>${formatCurrency(row.cost)}</td>
-                </tr>`;
-            });
+            if (!tableCollapsed) {
+                html += '<table><thead><tr>';
+                html += '<th>Date</th><th>Sales</th><th>Units</th><th>Trips</th><th>Buyers</th><th>Cost</th>';
+                html += '</tr></thead><tbody>';
+                
+                filteredData.forEach(row => {
+                    html += `<tr>
+                        <td>${row.date}</td>
+                        <td>${formatCurrency(row.sales)}</td>
+                        <td>${formatWholeNumber(row.units)}</td>
+                        <td>${formatWholeNumber(row.trips)}</td>
+                        <td>${formatWholeNumber(row.buyers)}</td>
+                        <td>${formatCurrency(row.cost)}</td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table>';
+            }
             
-            html += '</tbody></table></div>';
+            html += '</div>';
             container.innerHTML = html;
         }
 
@@ -726,6 +1111,18 @@
 
         // Initial render
         render();
+
+        // Chart.js handles responsive resizing automatically
+        // Just redraw if window resizes significantly
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (chartInstance) {
+                    chartInstance.resize();
+                }
+            }, 250);
+        });
     </script>
 </body>
 </html>
